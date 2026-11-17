@@ -1,0 +1,41 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+web_admin/coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Database and uploaded files
+data/
+instance/
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+uploads/
+media/
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

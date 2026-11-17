@@ -1,0 +1,21 @@
+[project]
+name = "mayic-backend"
+version = "1.0.0"
+description = "Sistema operativo y comercial Mayic"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "alembic>=1.16,<2",
+    "Flask>=3.1,<4",
+    "Flask-Cors>=6,<7",
+    "Flask-JWT-Extended>=4.7,<5",
+    "Flask-Migrate>=4.1,<5",
+    "Flask-SQLAlchemy>=3.1,<4",
+    "gunicorn>=23,<26",
+    "mysql-connector-python>=9.3,<10",
+    "SQLAlchemy>=2.0,<3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

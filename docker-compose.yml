@@ -1,0 +1,104 @@
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Define DB_ROOT_PASSWORD en .env}
+      MARIADB_DATABASE: ${DB_NAME:-mayi_eventos}
+      MARIADB_USER: ${DB_USER:-mayi_eventos}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+    ports:
+      - "${HOST_DB_PORT:-3307}:3306"
+    volumes:
+      - mayi_eventos_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mayi_eventos_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+mysqlconnector://${DB_USER:-mayi_eventos}:${DB_PASSWORD:?Define DB_PASSWORD en .env}@db:3306/${DB_NAME:-mayi_eventos}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Define JWT_SECRET_KEY en .env}
+      JWT_ACCESS_TOKEN_EXPIRES: ${JWT_ACCESS_TOKEN_EXPIRES:-3600}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@mayic.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Define ADMIN_PASSWORD en .env}
+      UPLOAD_FOLDER: /app/instance/payment_proofs
+      IMAGE_UPLOAD_FOLDER: /app/instance/product_images
+    volumes:
+      - mayi_eventos_payment_proofs:/app/instance/payment_proofs
+      - mayi_eventos_product_images:/app/instance/product_images
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:5000/api/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mayi_eventos_net
+
+  quote_expiry:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["flask", "--app", "app", "expire-quotes"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+mysqlconnector://${DB_USER:-mayi_eventos}:${DB_PASSWORD:?Define DB_PASSWORD en .env}@db:3306/${DB_NAME:-mayi_eventos}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Define JWT_SECRET_KEY en .env}
+      QUOTE_EXPIRY_POLL_SECONDS: ${QUOTE_EXPIRY_POLL_SECONDS:-30}
+    networks:
+      - mayi_eventos_net
+
+  web_client:
+    build:
+      context: ./web_admin
+      dockerfile: Dockerfile
+    image: mayi_eventos_web:latest
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./web_admin/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${WEB_PORT:-80}:80"
+    networks:
+      - mayi_eventos_net
+
+  web_admin:
+    image: mayi_eventos_web:latest
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./web_admin/nginx-admin.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${ADMIN_WEB_PORT:-8080}:80"
+    networks:
+      - mayi_eventos_net
+
+volumes:
+  mayi_eventos_db_data:
+  mayi_eventos_payment_proofs:
+  mayi_eventos_product_images:
+
+networks:
+  mayi_eventos_net:
+    driver: bridge
